@@ -31,11 +31,16 @@ import io
 import json
 import re
 from dataclasses import dataclass
-from urllib.request import Request, urlopen
 from xml.etree import ElementTree as ET  # noqa: S405 - trusted XML from AniDB API
 
+from cachetools import TTLCache
+
 from filebot.core.models import Episode, SearchResult, SeriesInfo
-from filebot.core.providers.base import BaseDatasource, EpisodeListProvider
+from filebot.core.providers.base import (
+    BaseDatasource,
+    EpisodeListProvider,
+    RestClientMixin,
+)
 from filebot.core.providers.utils import is_allowed_http
 
 _ANIDB_TITLES_URL = "http://anidb.net/api/anime-titles.dat.gz"
@@ -47,7 +52,7 @@ _ALLOWED_HOSTS = {"anidb.net", "api.anidb.net:9001", "api.anidb.net"}
 
 
 @dataclass(slots=True)
-class AniDBClient(BaseDatasource, EpisodeListProvider):
+class AniDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
     """AniDB episode provider.
 
     Parameters
@@ -63,6 +68,13 @@ class AniDBClient(BaseDatasource, EpisodeListProvider):
 
     # simple in-memory cache for anime titles index
     _titles_cache: list[SearchResult] | None = None
+    _cache_short: TTLCache | None = None
+    _cache_long: TTLCache | None = None
+
+    def __post_init__(self) -> None:
+        """Initialize caches for AniDB client."""
+        self._cache_short = TTLCache(maxsize=2048, ttl=24 * 60 * 60)
+        self._cache_long = TTLCache(maxsize=4096, ttl=7 * 24 * 60 * 60)
 
     @property
     def identifier(self) -> str:
@@ -248,9 +260,15 @@ class AniDBClient(BaseDatasource, EpisodeListProvider):
         url = _ANIDB_TITLES_URL
         if not is_allowed_http(url, _ALLOWED_HOSTS):
             return []
-        req = Request(url)  # noqa: S310
-        with urlopen(req, timeout=30) as resp:  # noqa: S310
-            raw = resp.read()
+        raw = self._http_get_bytes(
+            url,
+            timeout=30,
+            long_ttl=True,
+            require_https=False,
+            allowed_http_hosts=_ALLOWED_HOSTS,
+        )
+        if raw is None:
+            return []
         data = gzip.decompress(raw)
         # parse
         lines = io.BytesIO(data).read().decode("utf-8", errors="ignore").splitlines()
@@ -300,9 +318,16 @@ class AniDBClient(BaseDatasource, EpisodeListProvider):
         if not is_allowed_http(url, _ALLOWED_HOSTS):
             message = "AniDB: invalid scheme or host"
             raise RuntimeError(message)
-        req = Request(url)  # noqa: S310
-        with urlopen(req, timeout=30) as resp:  # noqa: S310
-            xml_bytes = resp.read()
+        xml_bytes = self._http_get_bytes(
+            url,
+            timeout=30,
+            long_ttl=False,
+            require_https=False,
+            allowed_http_hosts=_ALLOWED_HOSTS,
+        )
+        if xml_bytes is None:
+            message = "AniDB: request failed"
+            raise RuntimeError(message)
         return ET.fromstring(xml_bytes)  # noqa: S314 - trusted XML from AniDB API
 
     def _select_text(self, root: ET.Element, xpath: str) -> str:

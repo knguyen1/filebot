@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 from urllib.error import HTTPError, URLError
@@ -260,4 +261,66 @@ class RestClientMixin:
                 cache[key] = data
                 return data
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
+            logging.getLogger(
+                f"{self.__class__.__module__}.{self.__class__.__name__}"
+            ).warning(
+                "http_json_request_failed",
+                extra={
+                    "url": url,
+                    "require_https": require_https,
+                    "long_ttl": long_ttl,
+                },
+                exc_info=True,
+            )
             return {}
+
+    def _http_get_bytes(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        timeout: int = 15,
+        cache_key: str | None = None,
+        long_ttl: bool = False,
+        require_https: bool = True,
+        allowed_http_hosts: set[str] | None = None,
+    ) -> bytes | None:
+        """Perform a GET request and return raw bytes with cache / rate limit."""
+        from filebot.core.providers.utils import is_allowed_http, is_https
+
+        if require_https and not is_https(url):
+            return None
+        if not require_https and not (
+            is_https(url) or is_allowed_http(url, allowed_http_hosts)
+        ):
+            return None
+
+        cache = getattr(self, "_cache_long" if long_ttl else "_cache_short")
+        key = cache_key or url
+        cached = cache.get(key)
+        if cached is not None:
+            return cached  # type: ignore[return-value]
+
+        limiter = getattr(self, "_limiter", None)
+        if limiter is not None:
+            limiter.acquire()
+
+        req = Request(url, headers=headers or {})  # noqa: S310
+        try:
+            with urlopen(req, timeout=timeout) as resp:  # noqa: S310
+                data = resp.read()
+                cache[key] = data
+                return data
+        except (HTTPError, URLError, TimeoutError):
+            logging.getLogger(
+                f"{self.__class__.__module__}.{self.__class__.__name__}"
+            ).warning(
+                "http_bytes_request_failed",
+                extra={
+                    "url": url,
+                    "require_https": require_https,
+                    "long_ttl": long_ttl,
+                },
+                exc_info=True,
+            )
+            return None
