@@ -22,11 +22,21 @@
 
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 if TYPE_CHECKING:
-    from filebot.core.models import Episode, Movie, SearchResult, SeriesInfo
+    from filebot.core.models import (
+        Artwork,
+        Episode,
+        Movie,
+        SearchResult,
+        SeriesInfo,
+        SubtitleSearchResult,
+    )
 
 
 @runtime_checkable
@@ -146,3 +156,108 @@ class EpisodeListProvider(Datasource, Protocol):
 
     def get_episode_list_link(self, series: SearchResult) -> str:
         """Return public episode list URL for the given series."""
+
+
+@runtime_checkable
+class ArtworkProvider(Datasource, Protocol):
+    """Artwork provider contract."""
+
+    def get_artwork(self, media_id: int, category: str, locale: str) -> list[Artwork]:
+        """Return artwork for the given id and category."""
+
+
+@runtime_checkable
+class MusicIdentificationService(Datasource, Protocol):
+    """Music identification service contract (e.g., AcoustID)."""
+
+    def lookup(self, duration: int, fingerprint: str) -> dict:
+        """Lookup recording by Chromaprint fingerprint."""
+
+
+@runtime_checkable
+class SubtitleProvider(Datasource, Protocol):
+    """Subtitle provider contract."""
+
+    def search(self, query: str) -> list[SubtitleSearchResult]:
+        """Search subtitles by free-form query."""
+
+
+class RestClientMixin:
+    """Shared REST client helper for JSON GET with caching and rate limiting.
+
+    Attributes
+    ----------
+    _cache_short:
+        Short-lived cache (e.g., 1 day) for search endpoints.
+    _cache_long:
+        Long-lived cache (e.g., 1 week) for descriptor endpoints.
+    _limiter:
+        Rate limiter to protect external APIs.
+    """
+
+    def _http_get_json(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str] | None = None,
+        timeout: int = 15,
+        cache_key: str | None = None,
+        long_ttl: bool = False,
+        require_https: bool = True,
+        allowed_http_hosts: set[str] | None = None,
+    ) -> dict:
+        """Perform a GET request and return parsed JSON with cache / rate limit.
+
+        Parameters
+        ----------
+        url:
+            Full request URL.
+        headers:
+            Optional request headers.
+        timeout:
+            Timeout in seconds.
+        cache_key:
+            Optional key for caching; defaults to the URL string.
+        long_ttl:
+            Use the long-lived cache if True, else the short-lived cache.
+        require_https:
+            If True, only allow HTTPS URLs.
+        allowed_http_hosts:
+            If set, allow HTTP only for hosts in this set.
+
+        Returns
+        -------
+        dict
+            Parsed JSON object or empty dict on error.
+        """
+        from filebot.core.providers.utils import is_allowed_http, is_https
+
+        # Validate scheme
+        if require_https and not is_https(url):
+            return {}
+        if not require_https and not (
+            is_https(url) or is_allowed_http(url, allowed_http_hosts)
+        ):
+            return {}
+
+        # Select cache
+        cache = getattr(self, "_cache_long" if long_ttl else "_cache_short")
+        key = cache_key or url
+        cached = cache.get(key)
+        if cached is not None:
+            return cached
+
+        # Rate limit before network call
+        limiter = getattr(self, "_limiter", None)
+        if limiter is not None:
+            limiter.acquire()
+
+        # Only allow http(s) via earlier guards
+        req = Request(url, headers=headers or {})  # noqa: S310
+        try:
+            with urlopen(req, timeout=timeout) as resp:  # noqa: S310
+                data = json.loads(resp.read().decode("utf-8"))
+                cache[key] = data
+                return data
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
+            return {}

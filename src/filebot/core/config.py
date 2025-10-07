@@ -38,6 +38,11 @@ class AppConfig:
 
     tmdb_api_key: str | None = None
     tvdb_api_key: str | None = None
+    anidb_client: str | None = None
+    anidb_clientver: int | None = None
+    omdb_api_key: str | None = None
+    fanarttv_api_key: str | None = None
+    acoustid_api_key: str | None = None
 
 
 def load_config_from_env() -> AppConfig:
@@ -58,4 +63,9 @@ def load_config_from_env() -> AppConfig:
     return AppConfig(
         tmdb_api_key=os.getenv("FILEBOT_API_TMDB"),
         tvdb_api_key=os.getenv("FILEBOT_API_TVDB"),
+        anidb_client=os.getenv("FILEBOT_ANIDB_CLIENT"),
+        anidb_clientver=int(os.getenv("FILEBOT_ANIDB_CLIENTVER", "0")) or None,
+        omdb_api_key=os.getenv("FILEBOT_API_OMDB"),
+        fanarttv_api_key=os.getenv("FILEBOT_API_FANARTTV"),
+        acoustid_api_key=os.getenv("FILEBOT_API_ACOUSTID"),
     )

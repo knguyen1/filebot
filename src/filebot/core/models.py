@@ -147,3 +147,53 @@ class Episode:
 # Constants used across providers
 MOVIE_DB_IDENTIFIER: Final[str] = "TheMovieDB"
 TV_DB_IDENTIFIER: Final[str] = "TheTVDB"
+
+
+@dataclass(slots=True)
+class Artwork:
+    """Artwork asset descriptor.
+
+    Parameters
+    ----------
+    category:
+        Artwork category (e.g., "poster", "fanart").
+    url:
+        Absolute URL of the image.
+    language:
+        Two-letter language code if applicable.
+    rating:
+        Provider-specific rating for the asset.
+    """
+
+    category: str
+    url: str
+    language: str | None = None
+    rating: float | None = None
+
+
+@dataclass(slots=True)
+class SubtitleSearchResult:
+    """Subtitle search result descriptor.
+
+    Parameters
+    ----------
+    name:
+        Display name or file name of the subtitle.
+    lang:
+        Language code.
+    imdb_id:
+        Associated IMDb ID if known.
+    tmdb_id:
+        Associated TMDb ID if known.
+    score:
+        Relevance score if available.
+    url:
+        Download URL if available.
+    """
+
+    name: str
+    lang: str | None = None
+    imdb_id: int | None = None
+    tmdb_id: int | None = None
+    score: int | None = None
+    url: str | None = None

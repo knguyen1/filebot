@@ -22,20 +22,38 @@
 
 from __future__ import annotations
 
+from filebot.core.providers.acoustid import AcoustIDClient
+from filebot.core.providers.anidb import AniDBClient
 from filebot.core.providers.base import (
+    ArtworkProvider,
     BaseDatasource,
     Datasource,
     EpisodeListProvider,
     MovieIdentificationService,
+    MusicIdentificationService,
+    SubtitleProvider,
 )
+from filebot.core.providers.fanarttv import FanartTVClient
+from filebot.core.providers.omdb import OMDbClient
+from filebot.core.providers.opensubtitles import OpenSubtitlesClient
 from filebot.core.providers.tmdb import TMDbClient
 from filebot.core.providers.tvdb import TheTVDBClient
+from filebot.core.providers.tvmaze import TVMazeClient
 
 __all__ = [
+    "AcoustIDClient",
+    "AniDBClient",
+    "ArtworkProvider",
     "BaseDatasource",
     "Datasource",
     "EpisodeListProvider",
+    "FanartTVClient",
     "MovieIdentificationService",
+    "MusicIdentificationService",
+    "OMDbClient",
+    "OpenSubtitlesClient",
+    "SubtitleProvider",
     "TMDbClient",
+    "TVMazeClient",
     "TheTVDBClient",
 ]
