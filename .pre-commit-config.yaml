@@ -1,0 +1,49 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: trailing-whitespace
+        exclude: "(.*\\.(po|pot|svg|ui)$|test/data/.*)"
+      - id: end-of-file-fixer
+        exclude: "(.*\\.(po|pot|svg|ui)$|test/data/.*)"
+      - id: mixed-line-ending
+        exclude: "(.*\\.(po|pot|svg|ui)$|test/data/.*)"
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.9
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.8.11
+    hooks:
+      - id: uv-lock
+        name: Sync uv.lock with pyproject.toml
+        always_run: true
+      - id: pip-compile
+        name: pip-compile requirements.txt
+        args: [pyproject.toml, -o, requirements.txt, --generate-hashes, --universal, --python-version=3.10]
+        pass_filenames: false
+        always_run: true
+      - id: pip-compile
+        name: pip-compile requirements-dev.txt
+        args: [pyproject.toml, -o, requirements-dev.txt, --group, dev, --generate-hashes, --universal, --python-version=3.10]
+        pass_filenames: false
+        always_run: true
+  - repo: local
+    hooks:
+      - id: pytest
+        name: Run pytest
+        entry: uv run --frozen pytest -n auto -qx
+        language: python
+        types: [python]
+        pass_filenames: false
+        always_run: true
+      - id: ty check
+        name: Run ty check
+        entry: uv run --frozen ty check
+        language: python
+        types: [python]
+        pass_filenames: false
+        always_run: true
