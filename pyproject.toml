@@ -1,10 +1,13 @@
 [project]
 name = "filebot"
 version = "0.1.0"
-description = "Add your description here"
+description = "A fast, cross-platform file and media renamer and manager."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pyqt6>=6.9.1",
+    "qtawesome>=1.4.0",
+]
 
 [dependency-groups]
 dev = [
