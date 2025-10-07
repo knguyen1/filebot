@@ -29,6 +29,7 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
+from pathlib import Path
 from urllib.parse import urlsplit
 
 
@@ -123,3 +124,56 @@ class RateLimiter:
         # record event after sleeping
         with self._lock:
             self._events.append(time.monotonic())
+
+
+def compute_opensubtitles_hash(file_path: str) -> tuple[str, int]:
+    """Compute OpenSubtitles movie hash and file size.
+
+    Parameters
+    ----------
+    file_path:
+        Absolute path to the video file.
+
+    Returns
+    -------
+    tuple[str, int]
+        A tuple of (hash_hex, size_bytes). The hash is a 16-character
+        lowercase hexadecimal string as expected by OpenSubtitles.
+
+    Notes
+    -----
+    Algorithm: sum of 64-bit little-endian unsigned integers over the
+    first and last 64 KiB of the file plus the file size, reduced modulo
+    2^64.
+    """
+    block_size = 64 * 1024
+    p = Path(file_path)
+    size = p.stat().st_size
+
+    def _sum_64k(fh, length: int) -> int:
+        total = 0
+        buf = fh.read(length)
+        mv = memoryview(buf)
+        n = (len(mv) // 8) * 8
+        # sum 8-byte little-endian chunks
+        for i in range(0, n, 8):
+            chunk = int.from_bytes(mv[i : i + 8], "little", signed=False)
+            total = (total + chunk) & 0xFFFFFFFFFFFFFFFF
+        # handle remaining tail bytes (pad as little-endian)
+        rem = len(mv) - n
+        if rem:
+            tail = int.from_bytes(mv[n:], "little", signed=False)
+            total = (total + tail) & 0xFFFFFFFFFFFFFFFF
+        return total
+
+    with p.open("rb") as fh:
+        head_sum = _sum_64k(fh, min(block_size, size))
+        # seek to start of last 64 KiB (or 0 if file smaller)
+        tail_offset = max(size - block_size, 0)
+        fh.seek(tail_offset)
+        tail_sum = _sum_64k(fh, min(block_size, size))
+
+    # include size
+    h = (head_sum + tail_sum + (size & 0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF
+    hash_hex = f"{h:016x}"
+    return hash_hex, size
