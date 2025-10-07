@@ -21,6 +21,7 @@
 """Core providers TheTVDB module."""
 
 import json
+import re
 from dataclasses import dataclass, field
 from time import monotonic
 from typing import Any
@@ -110,6 +111,60 @@ class TheTVDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
             s_info = self.get_series_info(series_id, "en")
 
         episodes: list[Episode] = []
+        specials: list[Episode] = []
+        for node in self._iter_episode_nodes(series_id, locale):
+            try:
+                eid = int(node["id"])  # episode id
+                title = node.get("episodeName") or None
+                airdate = node.get("firstAired") or None
+                absolute_num = self._parse_int(node.get("absoluteNumber"))
+
+                season_num, episode_num = self._derive_numbering(
+                    order, node, absolute_num, airdate
+                )
+
+                is_regular = season_num is None or (
+                    isinstance(season_num, int) and season_num > 0
+                )
+
+                if is_regular:
+                    episodes.append(
+                        Episode(
+                            series_name=s_info.name or "",
+                            season=season_num,
+                            episode=episode_num,
+                            title=title,
+                            absolute=absolute_num,
+                            special_number=None,
+                            airdate=airdate,
+                            id=eid,
+                            series_info=s_info,
+                        )
+                    )
+                else:
+                    specials.append(
+                        Episode(
+                            series_name=s_info.name or "",
+                            season=None,
+                            episode=None,
+                            title=title,
+                            absolute=absolute_num,
+                            special_number=episode_num,
+                            airdate=airdate,
+                            id=eid,
+                            series_info=s_info,
+                        )
+                    )
+            except (KeyError, ValueError, TypeError):
+                continue
+
+        # Sort episodes by season / episode number and append specials at the end
+        episodes.sort(key=lambda e: ((e.season or 0), (e.episode or 0)))
+        episodes.extend(specials)
+        return episodes
+
+    def _iter_episode_nodes(self, series_id: int, locale: str):
+        """Yield raw episode nodes across all pages."""
         page = 1
         last = None
         while last is None or page <= last:
@@ -123,48 +178,44 @@ class TheTVDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
                 last = int(last) if last is not None else page
             except (TypeError, ValueError):
                 last = page
-
-            for it in data.get("data", []):
-                try:
-                    eid = int(it["id"])  # episode id
-                    title = it.get("episodeName") or None
-                    airdate = it.get("firstAired") or None
-                    absolute = it.get("absoluteNumber")
-                    absolute_num = (
-                        int(absolute)
-                        if isinstance(absolute, int)
-                        or (isinstance(absolute, str) and absolute.isdigit())
-                        else None
-                    )
-                    season_num = it.get("airedSeason")
-                    season_num = (
-                        int(season_num) if season_num not in (None, "") else None
-                    )
-                    episode_num = it.get("airedEpisodeNumber")
-                    episode_num = (
-                        int(episode_num) if episode_num not in (None, "") else None
-                    )
-
-                    episodes.append(
-                        Episode(
-                            series_name=s_info.name or "",
-                            season=season_num,
-                            episode=episode_num,
-                            title=title,
-                            absolute=absolute_num,
-                            special_number=it.get("dvdEpisodeNumber")
-                            if season_num == 0
-                            else None,
-                            airdate=airdate,
-                            id=eid,
-                            series_info=s_info,
-                        )
-                    )
-                except (KeyError, ValueError, TypeError):
-                    continue
+            yield from data.get("data", [])
             page += 1
 
-        return episodes
+    def _parse_int(self, value: Any) -> int | None:
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str) and value.isdigit():
+            return int(value)
+        return None
+
+    def _derive_numbering(
+        self,
+        sort_order: str,
+        node: dict[str, Any],
+        absolute_number: int | None,
+        airdate_str: str | None,
+    ) -> tuple[int | None, int | None]:
+        season_number = self._parse_int(node.get("airedSeason"))
+        episode_number = self._parse_int(node.get("airedEpisodeNumber"))
+
+        if sort_order == "DVD":
+            dvd_season = self._parse_int(node.get("dvdSeason"))
+            dvd_episode = self._parse_int(node.get("dvdEpisodeNumber"))
+            if dvd_season is not None and dvd_episode is not None:
+                return dvd_season, dvd_episode
+
+        if sort_order == "Absolute" and (absolute_number or 0) > 0:
+            return None, absolute_number
+
+        if (
+            sort_order == "AbsoluteAirdate"
+            and isinstance(airdate_str, str)
+            and re.match(r"^\d{4}-\d{2}-\d{2}$", airdate_str)
+        ):
+            y, m, d = airdate_str.split("-")
+            return None, int(y) * 10000 + int(m) * 100 + int(d)
+
+        return season_number, episode_number
 
     def get_series_info(self, series: SearchResult | int, locale: str) -> SeriesInfo:
         """Fetch basic series info."""

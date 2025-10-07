@@ -103,7 +103,8 @@ select = [
     "EM",
     "TRY",
     "PERF",
-    "CPY"
+    "CPY",
+    "C901"
     # "FBT", # use named arguments for boolean flags
     # "TD", # todos
     # "FIX", # fixme
@@ -119,7 +120,7 @@ ignore = [
     "PD002", # prevents inplace=True
     # TODO RE-Enable when we get bandwidth
     "PERF203", # Needs restructuring of errors, we should bail-out on first error
-    "C901",    # needs refactoring to remove cyclomatic complexity
+    # "C901",    # needs refactoring to remove cyclomatic complexity
     "B008", # Needs to restructure our cli params with Typer into constants
 ]
 
