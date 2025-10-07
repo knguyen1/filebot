@@ -18,4 +18,14 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Tests package."""
+"""Test UI package exports."""
+
+from __future__ import annotations
+
+from filebot.ui import components, views
+
+
+def test_ui_package_exports() -> None:
+    assert hasattr(components, "Sidebar")
+    assert hasattr(components, "FileList")
+    assert hasattr(views, "RenamePanel")

@@ -23,6 +23,7 @@
 
 from __future__ import annotations
 
+from filebot.ui.components.file_list import FileList as FileList
 from filebot.ui.components.sidebar import Sidebar as Sidebar
 
-__all__ = ["Sidebar"]
+__all__ = ["FileList", "Sidebar"]

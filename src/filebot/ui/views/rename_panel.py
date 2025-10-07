@@ -31,13 +31,13 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
-    QListWidget,
     QPushButton,
     QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
+from filebot.ui.components.file_list import FileList
 from filebot.ui.icons import get_icon
 
 
@@ -89,7 +89,14 @@ class RenamePanel(QWidget):
         vbox.setContentsMargins(8, 24, 8, 8)
         vbox.setSpacing(8)
 
-        list_widget = QListWidget(group)
+        # Left panel should accept file drops, right panel stays a plain list for now.
+        if title == "Original Files":
+            list_widget = FileList(group)
+            list_widget.setAcceptDrops(True)
+        else:
+            from PyQt6.QtWidgets import QListWidget
+
+            list_widget = QListWidget(group)
         list_widget.setObjectName(f"list_{title.lower().replace(' ', '_')}")
         vbox.addWidget(list_widget, 1)
 

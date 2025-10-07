@@ -18,4 +18,25 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Tests package."""
+"""Test icon utilities."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from PyQt6.QtGui import QIcon
+
+if TYPE_CHECKING:
+    from PyQt6.QtWidgets import QApplication
+
+from filebot.ui.icons import get_icon
+
+
+def test_get_icon_returns_qicon(qapp: QApplication) -> None:
+    icon = get_icon("rename")
+    assert isinstance(icon, QIcon)
+
+
+def test_get_icon_unknown_key_fallback(qapp: QApplication) -> None:
+    icon = get_icon("__unknown_key__")
+    assert isinstance(icon, QIcon)

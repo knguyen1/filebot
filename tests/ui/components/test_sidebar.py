@@ -18,4 +18,25 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""Tests package."""
+"""Test Sidebar widget."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from PyQt6.QtWidgets import QApplication, QToolButton
+
+from filebot.ui.components.sidebar import Sidebar
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+
+def test_sidebar_renders_buttons(qapp: QApplication) -> None:
+    labels: Sequence[str] = ("Rename", "Episodes", "Subtitles", "SFV", "Filter", "List")
+    s = Sidebar(labels)
+    buttons = s.findChildren(QToolButton)
+    assert len(buttons) >= len(labels)
+    names = {b.objectName() for b in buttons}
+    for label in labels:
+        assert f"sidebarButton_{label.lower()}" in names
