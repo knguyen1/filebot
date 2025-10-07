@@ -24,10 +24,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
-
-from cachetools import TTLCache
 
 from filebot.core.models import MOVIE_DB_IDENTIFIER, Movie
 from filebot.core.providers.base import (
@@ -35,7 +33,11 @@ from filebot.core.providers.base import (
     MovieIdentificationService,
     RestClientMixin,
 )
-from filebot.core.providers.utils import RateLimiter
+
+if TYPE_CHECKING:
+    from cachetools import TTLCache
+
+    from filebot.core.providers.utils import RateLimiter
 
 
 @dataclass(slots=True)
@@ -55,12 +57,11 @@ class TMDbClient(BaseDatasource, RestClientMixin, MovieIdentificationService):
 
     def __post_init__(self) -> None:
         """Initialize caches and rate limiter for TMDb client."""
-        # Search endpoints can change frequently; cache for 1 day
-        self._cache_short = TTLCache(maxsize=2048, ttl=24 * 60 * 60)
-        # Movie descriptors are fairly stable; cache for 1 week
-        self._cache_long = TTLCache(maxsize=4096, ttl=7 * 24 * 60 * 60)
-        # Respect TMDb limits ~40/10s; be conservative
-        self._limiter = RateLimiter(max_requests=35, window_seconds=10)
+        self._init_rest(
+            short_ttl=24 * 60 * 60,
+            long_ttl=7 * 24 * 60 * 60,
+            rate=(35, 10),
+        )
 
     @property
     def identifier(self) -> str:

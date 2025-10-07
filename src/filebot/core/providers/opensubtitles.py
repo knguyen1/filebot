@@ -13,11 +13,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
-if TYPE_CHECKING:
-    from filebot.core.models import SubtitleSearchResult
-
-from cachetools import TTLCache
-
 from filebot.core.models import SubtitleSearchResult
 from filebot.core.providers.base import (
     BaseDatasource,
@@ -25,6 +20,9 @@ from filebot.core.providers.base import (
     SubtitleProvider,
 )
 from filebot.core.providers.utils import RateLimiter, compute_opensubtitles_hash
+
+if TYPE_CHECKING:
+    from cachetools import TTLCache
 
 
 @dataclass(slots=True)
@@ -39,9 +37,7 @@ class OpenSubtitlesClient(BaseDatasource, RestClientMixin, SubtitleProvider):
 
     def __post_init__(self) -> None:
         """Initialize caches and rate limiter."""
-        self._cache_short = TTLCache(maxsize=2048, ttl=24 * 60 * 60)
-        self._cache_long = TTLCache(maxsize=4096, ttl=7 * 24 * 60 * 60)
-        self._limiter = RateLimiter(max_requests=5, window_seconds=1)
+        self._init_rest(short_ttl=24 * 60 * 60, long_ttl=7 * 24 * 60 * 60, rate=(5, 1))
 
     @property
     def identifier(self) -> str:

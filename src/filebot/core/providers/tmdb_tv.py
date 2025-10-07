@@ -8,10 +8,8 @@ Fetches series, seasons, and episodes from TMDb v3 API.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
-
-from cachetools import TTLCache
 
 from filebot.core.models import Episode, SearchResult, SeriesInfo
 from filebot.core.providers.base import (
@@ -22,7 +20,11 @@ from filebot.core.providers.base import (
 
 # Reuse language normalization from movie client
 from filebot.core.providers.tmdb import _normalize_language
-from filebot.core.providers.utils import RateLimiter
+
+if TYPE_CHECKING:
+    from cachetools import TTLCache
+
+    from filebot.core.providers.utils import RateLimiter
 
 
 @dataclass(slots=True)
@@ -42,9 +44,11 @@ class TMDbTVClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
 
     def __post_init__(self) -> None:
         """Initialize caches and rate limiter for TMDb TV client."""
-        self._cache_short = TTLCache(maxsize=2048, ttl=24 * 60 * 60)
-        self._cache_long = TTLCache(maxsize=4096, ttl=7 * 24 * 60 * 60)
-        self._limiter = RateLimiter(max_requests=35, window_seconds=10)
+        self._init_rest(
+            short_ttl=24 * 60 * 60,
+            long_ttl=7 * 24 * 60 * 60,
+            rate=(35, 10),
+        )
 
     # --- BaseDatasource ---
     @property

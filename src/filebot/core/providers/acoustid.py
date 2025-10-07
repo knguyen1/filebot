@@ -6,14 +6,16 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from cachetools import TTLCache
-
 from filebot.core.providers.base import BaseDatasource, MusicIdentificationService
 from filebot.core.providers.utils import RateLimiter, is_allowed_http
+
+if TYPE_CHECKING:
+    from cachetools import TTLCache
 
 
 @dataclass(slots=True)
@@ -32,9 +34,14 @@ class AcoustIDClient(BaseDatasource, MusicIdentificationService):
 
     def __post_init__(self) -> None:
         """Initialize cache and rate limiter for AcoustID client."""
-        self._cache_day = TTLCache(maxsize=2048, ttl=24 * 60 * 60)
-        # Public API docs suggest practical limits; be conservative
-        self._limiter = RateLimiter(max_requests=5, window_seconds=1)
+        # Use short cache for 1 day; no long-lived cache usage here
+        self._init_rest(
+            short_ttl=24 * 60 * 60,
+            long_ttl=24 * 60 * 60,
+            maxsize_short=2048,
+            maxsize_long=2048,
+            rate=(5, 1),
+        )
 
     @property
     def identifier(self) -> str:

@@ -6,10 +6,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
-
-from cachetools import TTLCache
 
 from filebot.core.models import Movie
 from filebot.core.providers.base import (
@@ -17,7 +15,11 @@ from filebot.core.providers.base import (
     MovieIdentificationService,
     RestClientMixin,
 )
-from filebot.core.providers.utils import RateLimiter
+
+if TYPE_CHECKING:
+    from cachetools import TTLCache
+
+    from filebot.core.providers.utils import RateLimiter
 
 
 @dataclass(slots=True)
@@ -37,9 +39,13 @@ class OMDbClient(BaseDatasource, RestClientMixin, MovieIdentificationService):
     def __post_init__(self) -> None:
         """Initialize cache and rate limiter for OMDb client."""
         # OMDb results change, but daily cache is fine for most workflows
-        self._cache_short = TTLCache(maxsize=4096, ttl=24 * 60 * 60)
-        # OMDb free tier is rate limited; be conservative
-        self._limiter = RateLimiter(max_requests=2, window_seconds=1)
+        self._init_rest(
+            short_ttl=24 * 60 * 60,
+            long_ttl=24 * 60 * 60,
+            maxsize_short=4096,
+            maxsize_long=4096,
+            rate=(2, 1),
+        )
 
     @property
     def identifier(self) -> str:
@@ -97,7 +103,6 @@ class OMDbClient(BaseDatasource, RestClientMixin, MovieIdentificationService):
         )
 
     def _request(self, params: dict[str, Any]) -> dict[str, Any]:
-        # Prefer HTTPS
         url = "https://www.omdbapi.com/?" + urlencode(params)
         return self._http_get_json(url, timeout=15, long_ttl=False, require_https=True)
 

@@ -274,6 +274,38 @@ class RestClientMixin:
             )
             return {}
 
+    def _init_rest(
+        self,
+        short_ttl: int,
+        long_ttl: int,
+        maxsize_short: int = 2048,
+        maxsize_long: int = 4096,
+        rate: tuple[int, float] | None = None,
+    ) -> None:
+        """Initialize standard caches and optional rate limiter.
+
+        Parameters
+        ----------
+        short_ttl:
+            TTL seconds for short-lived cache (e.g., search).
+        long_ttl:
+            TTL seconds for long-lived cache (e.g., descriptors).
+        maxsize_short:
+            Max entries for short cache.
+        maxsize_long:
+            Max entries for long cache.
+        rate:
+            Optional (max_requests, window_seconds) for RateLimiter.
+        """
+        from cachetools import TTLCache
+
+        from filebot.core.providers.utils import RateLimiter
+
+        self._cache_short = TTLCache(maxsize=maxsize_short, ttl=short_ttl)
+        self._cache_long = TTLCache(maxsize=maxsize_long, ttl=long_ttl)
+        if rate is not None:
+            self._limiter = RateLimiter(max_requests=rate[0], window_seconds=rate[1])
+
     def _http_get_bytes(
         self,
         url: str,

@@ -5,12 +5,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-
-from cachetools import TTLCache
+from typing import TYPE_CHECKING
 
 from filebot.core.models import Artwork
 from filebot.core.providers.base import ArtworkProvider, BaseDatasource, RestClientMixin
 from filebot.core.providers.utils import is_https
+
+if TYPE_CHECKING:
+    from cachetools import TTLCache
 
 
 @dataclass(slots=True)
@@ -29,7 +31,7 @@ class FanartTVClient(BaseDatasource, RestClientMixin, ArtworkProvider):
     def __post_init__(self) -> None:
         """Initialize cache for FanartTV client."""
         # Artwork sets are fairly static; cache for a week
-        self._cache_week = TTLCache(maxsize=4096, ttl=7 * 24 * 60 * 60)
+        self._init_rest(short_ttl=7 * 24 * 60 * 60, long_ttl=7 * 24 * 60 * 60)
 
     @property
     def identifier(self) -> str:

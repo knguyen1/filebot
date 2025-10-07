@@ -31,9 +31,8 @@ import io
 import json
 import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from xml.etree import ElementTree as ET  # noqa: S405 - trusted XML from AniDB API
-
-from cachetools import TTLCache
 
 from filebot.core.models import Episode, SearchResult, SeriesInfo
 from filebot.core.providers.base import (
@@ -42,6 +41,9 @@ from filebot.core.providers.base import (
     RestClientMixin,
 )
 from filebot.core.providers.utils import is_allowed_http
+
+if TYPE_CHECKING:
+    from cachetools import TTLCache
 
 _ANIDB_TITLES_URL = "http://anidb.net/api/anime-titles.dat.gz"
 _ANIDB_HTTP_API = (
@@ -73,8 +75,10 @@ class AniDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
 
     def __post_init__(self) -> None:
         """Initialize caches for AniDB client."""
-        self._cache_short = TTLCache(maxsize=2048, ttl=24 * 60 * 60)
-        self._cache_long = TTLCache(maxsize=4096, ttl=7 * 24 * 60 * 60)
+        self._init_rest(
+            short_ttl=24 * 60 * 60,
+            long_ttl=7 * 24 * 60 * 60,
+        )
 
     @property
     def identifier(self) -> str:
