@@ -35,6 +35,7 @@ from filebot.core.providers.base import (
 from filebot.core.providers.fanarttv import FanartTVClient
 from filebot.core.providers.omdb import OMDbClient
 from filebot.core.providers.tmdb import TMDbClient
+from filebot.core.providers.tmdb_tv import TMDbTVClient
 from filebot.core.providers.tvdb import TheTVDBClient
 from filebot.core.providers.tvmaze import TVMazeClient
 
@@ -96,7 +97,8 @@ def _build_registry(config: AppConfig) -> ProviderRegistry:
     if config.tmdb_api_key:
         tmdb = TMDbClient(apikey=config.tmdb_api_key)
         movies.append(tmdb)
-        # TMDb can also serve TV data; include later when implemented
+        # Add TMDb TV provider for episodes
+        episodes.append(TMDbTVClient(apikey=config.tmdb_api_key))
 
     if config.omdb_api_key:
         movies.append(OMDbClient(apikey=config.omdb_api_key))

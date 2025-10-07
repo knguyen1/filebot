@@ -37,6 +37,7 @@ from filebot.core.providers.fanarttv import FanartTVClient
 from filebot.core.providers.omdb import OMDbClient
 from filebot.core.providers.opensubtitles import OpenSubtitlesClient
 from filebot.core.providers.tmdb import TMDbClient
+from filebot.core.providers.tmdb_tv import TMDbTVClient
 from filebot.core.providers.tvdb import TheTVDBClient
 from filebot.core.providers.tvmaze import TVMazeClient
 
@@ -54,6 +55,7 @@ __all__ = [
     "OpenSubtitlesClient",
     "SubtitleProvider",
     "TMDbClient",
+    "TMDbTVClient",
     "TVMazeClient",
     "TheTVDBClient",
 ]
