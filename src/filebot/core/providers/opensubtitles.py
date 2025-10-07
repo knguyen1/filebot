@@ -150,3 +150,37 @@ class OpenSubtitlesClient(BaseDatasource, RestClientMixin, SubtitleProvider):
                 )
             )
         return out
+
+    def search_best(
+        self, file_path: str, tag: str | None = None, locale: str | None = None
+    ) -> list[SubtitleSearchResult]:
+        """Search by hash first, then fall back to tag-based search.
+
+        Parameters
+        ----------
+        file_path:
+            Absolute path to the target video file used for hash search.
+        tag:
+            Optional tag to use for fallback (defaults to file stem).
+        locale:
+            Optional language code; currently not used by REST API filter.
+
+        Returns
+        -------
+        list[SubtitleSearchResult]
+            Hash-based results if available; otherwise tag-based results.
+        """
+        if not file_path:
+            return []
+
+        by_hash = self.search_by_hash(file_path, locale=locale)
+        if by_hash:
+            return by_hash
+
+        if tag is None:
+            from pathlib import Path
+
+            tag = Path(file_path).stem
+        if not tag:
+            return []
+        return self.search(tag)
