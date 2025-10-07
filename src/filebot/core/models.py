@@ -99,12 +99,24 @@ class SeriesInfo:
         Alternate titles.
     order:
         Sort order hint (e.g., "Airdate", "DVD", "Absolute").
+    status:
+        Production status if known (e.g., "Ended", "Returning Series").
+    runtime:
+        Typical runtime in minutes if known.
+    genres:
+        List of genre names.
+    network:
+        Network or production company name if known.
     """
 
     id: int
     name: str | None = None
     alias_names: list[str] = field(default_factory=list)
     order: str | None = None
+    status: str | None = None
+    runtime: int | None = None
+    genres: list[str] = field(default_factory=list)
+    network: str | None = None
 
 
 @dataclass(slots=True)

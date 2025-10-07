@@ -158,7 +158,41 @@ class TMDbTVClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
         sid = series.id if isinstance(series, SearchResult) else int(series)
         tv = self._request_json(f"tv/{sid}", {}, locale)
         name = (tv.get("name") or tv.get("original_name") or "").strip() or None
-        return SeriesInfo(id=sid, name=name, alias_names=[])
+        # Build alias names: original name if different, and any from season names (optional)
+        aliases: list[str] = []
+        original = (tv.get("original_name") or "").strip()
+        if original and original != name:
+            aliases.append(original)
+        # Populate SeriesInfo metadata similar to Java
+        status = tv.get("status") or None
+        runtime = None
+        runtimes = tv.get("episode_run_time") or []
+        if isinstance(runtimes, list) and runtimes:
+            rt0 = runtimes[0]
+            if isinstance(rt0, int):
+                runtime = rt0
+            elif isinstance(rt0, str) and rt0.isdigit():
+                runtime = int(rt0)
+        genres = [
+            g.get("name")
+            for g in (tv.get("genres") or [])
+            if isinstance(g, dict) and g.get("name")
+        ]
+        network = None
+        nets = tv.get("networks") or []
+        if isinstance(nets, list) and nets:
+            nn = nets[0]
+            if isinstance(nn, dict):
+                network = nn.get("name") or None
+        return SeriesInfo(
+            id=sid,
+            name=name,
+            alias_names=aliases,
+            status=status,
+            runtime=runtime,
+            genres=genres,
+            network=network,
+        )
 
     def get_episode_list_link(self, series: SearchResult) -> str:
         """Return public TMDb TV page URL for the series."""
