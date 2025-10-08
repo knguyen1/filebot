@@ -11,6 +11,9 @@ from filebot.core.models import Artwork
 from filebot.core.providers.base import ArtworkProvider, BaseDatasource, RestClientMixin
 from filebot.core.providers.utils import is_https
 
+# FanartTV API URLs
+_FANARTTV_BASE_URL = "https://webservice.fanart.tv/v3/"
+
 if TYPE_CHECKING:
     from cachetools import TTLCache
 
@@ -40,7 +43,7 @@ class FanartTVClient(BaseDatasource, RestClientMixin, ArtworkProvider):
 
     def get_artwork(self, media_id: int, category: str, locale: str) -> list[Artwork]:
         """Return artwork items for a given media identifier and category."""
-        url = f"https://webservice.fanart.tv/v3/{category}/{media_id}?api_key={self.apikey}"
+        url = f"{_FANARTTV_BASE_URL}{category}/{media_id}?api_key={self.apikey}"
         if not is_https(url):
             return []
 

@@ -21,6 +21,13 @@ from filebot.core.providers.base import (
 )
 from filebot.core.providers.utils import RateLimiter, compute_opensubtitles_hash
 
+# OpenSubtitles API URLs
+_OPENSUBTITLES_BASE_URL = "https://rest.opensubtitles.org"
+_OPENSUBTITLES_SEARCH_URL = f"{_OPENSUBTITLES_BASE_URL}/search/query-{{tag}}"
+_OPENSUBTITLES_HASH_URL = (
+    f"{_OPENSUBTITLES_BASE_URL}/search/moviebytesize-{{size}}/moviehash-{{hash}}"
+)
+
 if TYPE_CHECKING:
     from cachetools import TTLCache
 
@@ -64,7 +71,7 @@ class OpenSubtitlesClient(BaseDatasource, RestClientMixin, SubtitleProvider):
         # Docs: https://trac.opensubtitles.org/projects/opensubtitles/wiki/DevReadFirst
         # Endpoint pattern: /search/query-<tag>
         tag = quote(query.strip())
-        url = f"https://rest.opensubtitles.org/search/query-{tag}"
+        url = _OPENSUBTITLES_SEARCH_URL.format(tag=tag)
 
         headers = {
             # Required User-Agent format similar to Java client
@@ -118,7 +125,7 @@ class OpenSubtitlesClient(BaseDatasource, RestClientMixin, SubtitleProvider):
             return []
         hash_hex, size = compute_opensubtitles_hash(file_path)
         # Endpoint: /search/moviebytesize-<size>/moviehash-<hash>
-        url = f"https://rest.opensubtitles.org/search/moviebytesize-{size}/moviehash-{hash_hex}"
+        url = _OPENSUBTITLES_HASH_URL.format(size=size, hash=hash_hex)
         headers = {
             "User-Agent": f"{self.app_name} v{self.app_version}",
             "Accept": "application/json",

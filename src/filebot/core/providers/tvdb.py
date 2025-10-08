@@ -42,6 +42,11 @@ from filebot.core.providers.utils import (
     lenient_name_equals,
 )
 
+# TVDB API URLs
+_TVDB_BASE_URL = "https://api.thetvdb.com/"
+_TVDB_LOGIN_URL = "https://api.thetvdb.com/login"
+_TVDB_PUBLIC_URL = "https://www.thetvdb.com/"
+
 
 @dataclass(slots=True)
 class TheTVDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
@@ -241,13 +246,13 @@ class TheTVDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
 
     def get_episode_list_link(self, series: SearchResult) -> str:
         """Return the public episode list link."""
-        return f"https://www.thetvdb.com/?tab=seasonall&id={series.id}"
+        return f"{_TVDB_PUBLIC_URL}?tab=seasonall&id={series.id}"
 
     # --- Internal helpers ---
     def _request_json(
         self, path: str, params: dict[str, Any], locale: str
     ) -> dict[str, Any]:
-        base = "https://api.thetvdb.com/"
+        base = _TVDB_BASE_URL
         token = self._get_token()
         query = urlencode(params) if params else ""
         url = base + path + ("?" + query if query else "")
@@ -277,7 +282,7 @@ class TheTVDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
         if self._token and self._token_expire_ts and now < self._token_expire_ts:
             return self._token
 
-        url = "https://api.thetvdb.com/login"
+        url = _TVDB_LOGIN_URL
         payload = json.dumps({"apikey": self.apikey}).encode("utf-8")
         req = Request(  # noqa: S310
             url,

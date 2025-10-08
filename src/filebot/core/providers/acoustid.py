@@ -14,6 +14,10 @@ from urllib.request import Request, urlopen
 from filebot.core.providers.base import BaseDatasource, MusicIdentificationService
 from filebot.core.providers.utils import RateLimiter, is_allowed_http
 
+# AcoustID API URLs
+_ACOUSTID_BASE_URL = "http://api.acoustid.org/v2/lookup"
+_ACOUSTID_ALLOWED_HOSTS = {"api.acoustid.org"}
+
 if TYPE_CHECKING:
     from cachetools import TTLCache
 
@@ -52,13 +56,17 @@ class AcoustIDClient(BaseDatasource, MusicIdentificationService):
         """Lookup recordings by Chromaprint fingerprint and duration."""
         if duration < 1 or not fingerprint:
             return {}
-        url = "http://api.acoustid.org/v2/lookup?" + urlencode({
-            "client": self.apikey,
-            "meta": "recordings+releases+releasegroups+tracks+compress",
-            "duration": duration,
-            "fingerprint": fingerprint,
-        })
-        if not is_allowed_http(url, {"api.acoustid.org"}):
+        url = (
+            _ACOUSTID_BASE_URL
+            + "?"
+            + urlencode({
+                "client": self.apikey,
+                "meta": "recordings+releases+releasegroups+tracks+compress",
+                "duration": duration,
+                "fingerprint": fingerprint,
+            })
+        )
+        if not is_allowed_http(url, _ACOUSTID_ALLOWED_HOSTS):
             return {}
 
         cached = self._cache_day.get(url)

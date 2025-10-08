@@ -34,6 +34,9 @@ from filebot.core.providers.base import (
     RestClientMixin,
 )
 
+# TMDb API URLs
+_TMDB_BASE_URL = "https://api.themoviedb.org/3/"
+
 if TYPE_CHECKING:
     from cachetools import TTLCache
 
@@ -200,7 +203,7 @@ class TMDbClient(BaseDatasource, RestClientMixin, MovieIdentificationService):
         dict[str, Any]
             Parsed JSON; empty dict on HTTP errors.
         """
-        base = "https://api.themoviedb.org/3/"
+        base = _TMDB_BASE_URL
         query = {"api_key": self.apikey}
         if locale:
             query["language"] = _normalize_language(locale)

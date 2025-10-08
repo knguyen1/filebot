@@ -38,6 +38,8 @@ from filebot.core.providers.base import (
 from filebot.core.providers.utils import is_allowed_http
 
 _TVMAZE_HOST = "api.tvmaze.com"
+_TVMAZE_BASE_URL = f"http://{_TVMAZE_HOST}/"
+_TVMAZE_PUBLIC_URL = "http://www.tvmaze.com/shows/"
 
 
 if TYPE_CHECKING:
@@ -189,11 +191,11 @@ class TVMazeClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
 
     def get_episode_list_link(self, series: SearchResult) -> str:
         """Return TVmaze public series page URL."""
-        return f"http://www.tvmaze.com/shows/{series.id}"
+        return f"{_TVMAZE_PUBLIC_URL}{series.id}"
 
     # --- internal helpers ---
     def _request_json(self, resource: str) -> Any:
-        url = f"http://{_TVMAZE_HOST}/{resource}"
+        url = f"{_TVMAZE_BASE_URL}{resource}"
         if not is_allowed_http(url, {_TVMAZE_HOST}):
             return {}
         return self._http_get_json(

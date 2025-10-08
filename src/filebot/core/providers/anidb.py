@@ -50,6 +50,7 @@ _ANIDB_HTTP_API = (
     "http://api.anidb.net:9001/httpapi?request=anime&client={client}"
     "&clientver={clientver}&protover=1&aid={aid}"
 )
+_ANIDB_PUBLIC_URL = "http://anidb.net"
 _ALLOWED_HOSTS = {"anidb.net", "api.anidb.net:9001", "api.anidb.net"}
 
 
@@ -273,7 +274,7 @@ class AniDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
 
     def get_episode_list_link(self, series: SearchResult) -> str:
         """Return AniDB public series page URL."""
-        return f"http://anidb.net/a{series.id}"
+        return f"{_ANIDB_PUBLIC_URL}/a{series.id}"
 
     # --- internal helpers ---
     def _load_titles_index(self) -> list[SearchResult]:

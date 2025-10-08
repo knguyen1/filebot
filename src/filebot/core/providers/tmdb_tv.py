@@ -21,6 +21,10 @@ from filebot.core.providers.base import (
 # Reuse language normalization from movie client
 from filebot.core.providers.tmdb import _normalize_language
 
+# TMDb TV API URLs
+_TMDB_TV_BASE_URL = "https://api.themoviedb.org/3/"
+_TMDB_TV_PUBLIC_URL = "https://www.themoviedb.org/tv/"
+
 if TYPE_CHECKING:
     from cachetools import TTLCache
 
@@ -200,13 +204,13 @@ class TMDbTVClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
 
     def get_episode_list_link(self, series: SearchResult) -> str:
         """Return public TMDb TV page URL for the series."""
-        return f"https://www.themoviedb.org/tv/{series.id}"
+        return f"{_TMDB_TV_PUBLIC_URL}{series.id}"
 
     # --- internal helpers ---
     def _request_json(
         self, path: str, params: dict[str, Any], locale: str
     ) -> dict[str, Any]:
-        base = "https://api.themoviedb.org/3/"
+        base = _TMDB_TV_BASE_URL
         query = {"api_key": self.apikey}
         if locale:
             query["language"] = _normalize_language(locale)

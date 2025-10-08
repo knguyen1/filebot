@@ -16,6 +16,9 @@ from filebot.core.providers.base import (
     RestClientMixin,
 )
 
+# OMDb API URLs
+_OMDB_BASE_URL = "https://www.omdbapi.com/"
+
 if TYPE_CHECKING:
     from cachetools import TTLCache
 
@@ -103,7 +106,7 @@ class OMDbClient(BaseDatasource, RestClientMixin, MovieIdentificationService):
         )
 
     def _request(self, params: dict[str, Any]) -> dict[str, Any]:
-        url = "https://www.omdbapi.com/?" + urlencode(params)
+        url = _OMDB_BASE_URL + "?" + urlencode(params)
         return self._http_get_json(url, timeout=15, long_ttl=False, require_https=True)
 
 
