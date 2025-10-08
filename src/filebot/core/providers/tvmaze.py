@@ -25,26 +25,48 @@ Implements search, series info, and episode listing via TVmaze API.
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass
-from typing import Any
-from urllib.error import HTTPError, URLError
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
 from filebot.core.models import Episode, SearchResult, SeriesInfo
-from filebot.core.providers.base import BaseDatasource, EpisodeListProvider
+from filebot.core.providers.base import (
+    BaseDatasource,
+    EpisodeListProvider,
+    RestClientMixin,
+)
 from filebot.core.providers.utils import is_allowed_http
 
 _TVMAZE_HOST = "api.tvmaze.com"
 
 
-@dataclass(slots=True)
-class TVMazeClient(BaseDatasource, EpisodeListProvider):
-    """TVmaze episode provider.
+if TYPE_CHECKING:
+    from cachetools import TTLCache
 
-    No API key required.
+
+@dataclass(slots=True)
+class TVMazeClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
+    """TVmaze episode provider using shared REST client mixin.
+
+    Notes
+    -----
+    TVmaze does not require an API key and serves data over HTTP. We use the
+    shared REST mixin for caching, validation and request handling.
     """
+
+    _cache_short: TTLCache = field(init=False, repr=False)
+    _cache_long: TTLCache = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        """Initialize caches; TVmaze is HTTP-only with short cache.
+
+        Notes
+        -----
+        Use short TTL since TVmaze data can change frequently.
+        """
+        self._init_rest(short_ttl=24 * 60 * 60, long_ttl=24 * 60 * 60)
+
+    """TVmaze episode provider; no API key required."""
 
     @property
     def identifier(self) -> str:
@@ -174,10 +196,10 @@ class TVMazeClient(BaseDatasource, EpisodeListProvider):
         url = f"http://{_TVMAZE_HOST}/{resource}"
         if not is_allowed_http(url, {_TVMAZE_HOST}):
             return {}
-        req = Request(url)  # noqa: S310
-        try:
-            with urlopen(req, timeout=15) as resp:  # noqa: S310
-                content = resp.read().decode("utf-8")
-                return json.loads(content)
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
-            return {}
+        return self._http_get_json(
+            url,
+            timeout=15,
+            long_ttl=False,
+            require_https=False,
+            allowed_http_hosts={_TVMAZE_HOST},
+        )
