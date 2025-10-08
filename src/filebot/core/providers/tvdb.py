@@ -30,7 +30,13 @@ from urllib.request import Request, urlopen
 
 from cachetools import TTLCache
 
-from filebot.core.models import TV_DB_IDENTIFIER, Episode, SearchResult, SeriesInfo
+from filebot.core.models import (
+    TV_DB_IDENTIFIER,
+    Artwork,
+    Episode,
+    SearchResult,
+    SeriesInfo,
+)
 from filebot.core.providers.base import (
     BaseDatasource,
     EpisodeListProvider,
@@ -247,6 +253,174 @@ class TheTVDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
     def get_episode_list_link(self, series: SearchResult) -> str:
         """Return the public episode list link."""
         return f"{_TVDB_PUBLIC_URL}?tab=seasonall&id={series.id}"
+
+    # --- Extras ---
+    def get_languages(self) -> list[str]:
+        """Return list of TheTVDB language abbreviations.
+
+        Returns
+        -------
+        list[str]
+            Language abbreviations, e.g., "en", "de", "es".
+        """
+        data = self._request_json("languages", {}, "")
+        items = data.get("data") if isinstance(data, dict) else None
+        if not isinstance(items, list):
+            return []
+        langs: list[str] = []
+        for it in items:
+            if isinstance(it, dict):
+                abbr = it.get("abbreviation")
+                if isinstance(abbr, str) and abbr:
+                    langs.append(abbr)
+        return langs
+
+    def get_actors(self, series_id: int, locale: str) -> list[dict[str, object]]:
+        """Return actor credits for a series.
+
+        Parameters
+        ----------
+        series_id:
+            TheTVDB numeric series identifier.
+        locale:
+            Preferred language (BCP-47) for localized fields when available.
+
+        Returns
+        -------
+        list[dict[str, object]]
+            List of actor dictionaries with keys: "name", "character", "order", "image".
+        """
+        path = f"series/{series_id}/actors"
+        data = self._request_json(path, {}, locale)
+        items = data.get("data") if isinstance(data, dict) else None
+        if not isinstance(items, list):
+            return []
+        actors: list[dict[str, object]] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            name = it.get("name")
+            character = it.get("role")
+            order = it.get("sortOrder")
+            image = self._resolve_image(it.get("image"))
+            actors.append({
+                "name": name if isinstance(name, str) else None,
+                "character": character if isinstance(character, str) else None,
+                "order": int(order)
+                if isinstance(order, (int, str)) and str(order).isdigit()
+                else None,
+                "image": image,
+            })
+        actors.sort(key=lambda a: (a.get("order") is None, a.get("order") or 0))
+        return actors
+
+    def get_episode_info(self, episode_id: int, locale: str) -> dict[str, object]:
+        """Return extra episode information.
+
+        Parameters
+        ----------
+        episode_id:
+            TheTVDB numeric episode identifier.
+        locale:
+            Preferred language (BCP-47).
+
+        Returns
+        -------
+        dict[str, object]
+            Dictionary with keys: "series_id", "overview", "rating", "votes",
+            and "people" (list of credit dictionaries).
+        """
+        data = self._request_json(f"episodes/{episode_id}", {}, locale)
+        node = data.get("data") if isinstance(data, dict) else None
+        if not isinstance(node, dict):
+            return {}
+        series_id = node.get("seriesId")
+        overview = node.get("overview")
+        rating = node.get("siteRating")
+        votes = node.get("siteRatingCount")
+
+        def _as_people(key: str, role: str) -> list[dict[str, object]]:
+            vals = node.get(key)
+            out: list[dict[str, object]] = []
+            if isinstance(vals, list):
+                out.extend(
+                    {"name": v, "role": role} for v in vals if isinstance(v, str) and v
+                )
+            return out
+
+        people: list[dict[str, object]] = []
+        people.extend(_as_people("directors", "Director"))
+        people.extend(_as_people("writers", "Writer"))
+        people.extend(_as_people("guestStars", "Guest Star"))
+
+        return {
+            "series_id": int(series_id)
+            if isinstance(series_id, (int, str)) and str(series_id).isdigit()
+            else None,
+            "overview": overview if isinstance(overview, str) else None,
+            "rating": float(rating)
+            if isinstance(rating, (int, float, str))
+            and str(rating).replace(".", "", 1).isdigit()
+            else None,
+            "votes": int(votes)
+            if isinstance(votes, (int, str)) and str(votes).isdigit()
+            else None,
+            "people": people,
+        }
+
+    def get_artwork(self, series_id: int, category: str, locale: str) -> list[Artwork]:
+        """Return artwork for a series and category.
+
+        Parameters
+        ----------
+        series_id:
+            TheTVDB numeric series identifier.
+        category:
+            TheTVDB image key type (e.g., "fanart", "poster", "season").
+        locale:
+            Preferred language (BCP-47).
+
+        Returns
+        -------
+        list[Artwork]
+            List of artwork assets.
+        """
+        path = f"series/{series_id}/images/query"
+        data = self._request_json(path, {"keyType": category}, locale)
+        items = data.get("data") if isinstance(data, dict) else None
+        if not isinstance(items, list):
+            return []
+        artworks: list[Artwork] = []
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            sub_key = it.get("subKey") or None
+            resolution = it.get("resolution") or None
+            file_name = it.get("fileName") or None
+            ratings_info = it.get("ratingsInfo") or {}
+            rating = None
+            if isinstance(ratings_info, dict):
+                avg = ratings_info.get("average")
+                if isinstance(avg, (int, float)):
+                    rating = float(avg)
+                elif isinstance(avg, str):
+                    rating = float(avg) if avg.replace(".", "", 1).isdigit() else None
+            url = self._resolve_image(file_name)
+            cat = (
+                ",".join([p for p in [category, sub_key, resolution] if p]) or category
+            )
+            if url:
+                artworks.append(
+                    Artwork(category=cat, url=url, language=None, rating=rating)
+                )
+        artworks.sort(key=lambda a: (a.rating is None, -(a.rating or 0.0)))
+        return artworks
+
+    def _resolve_image(self, path: object) -> str | None:
+        """Resolve TheTVDB banner path to full URL."""
+        if not isinstance(path, str) or not path:
+            return None
+        return f"https://thetvdb.com/banners/{path}"
 
     # --- Internal helpers ---
     def _request_json(
