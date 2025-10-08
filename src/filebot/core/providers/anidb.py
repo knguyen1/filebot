@@ -159,69 +159,16 @@ class AniDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
 
         episodes: list[Episode] = []
         for node in xml_data.findall("anime/episodes/episode"):
-            epno = node.find("epno")
-            if epno is None or epno.text is None:
-                continue
-            number = int(re.sub(r"\D", "", epno.text))
-            type_attr = epno.get("type")
-            try:
-                ep_type = int(type_attr) if type_attr is not None else 0
-            except ValueError:
-                ep_type = 0
-
-            if ep_type not in (1, 2):  # normal or special
-                continue
-
-            try:
-                eid = int(node.get("id")) if node.get("id") else None
-            except ValueError:
-                eid = None
-
-            airdate = self._select_text(node, "airdate") or None
-            title = self._select_text(node, f".//title[@lang='{lang}']") or ""
-            if not title:
-                title = self._select_text(node, ".//title[@lang='en']") or ""
-
-            if ep_type == 1:  # normal episode
-                abs_num = number
-                if (
-                    order == "AbsoluteAirdate"
-                    and airdate
-                    and re.match(r"\d{4}-\d{2}-\d{2}", airdate)
-                ):
-                    y, m, d = airdate.split("-")
-                    abs_num = int(y) * 10000 + int(m) * 100 + int(d)
-                episodes.append(
-                    Episode(
-                        series_name=official_name or series_name or "",
-                        season=None,
-                        episode=number,
-                        title=title or None,
-                        absolute=abs_num,
-                        special_number=None,
-                        airdate=airdate,
-                        id=eid,
-                        series_info=SeriesInfo(
-                            id=sid, name=series_name or official_name or ""
-                        ),
-                    )
-                )
-            else:  # special
-                episodes.append(
-                    Episode(
-                        series_name=official_name or series_name or "",
-                        season=None,
-                        episode=None,
-                        title=title or None,
-                        absolute=None,
-                        special_number=number,
-                        airdate=airdate,
-                        id=eid,
-                        series_info=SeriesInfo(
-                            id=sid, name=series_name or official_name or ""
-                        ),
-                    )
-                )
+            ep = self._episode_from_node(
+                node=node,
+                lang=lang,
+                order=order,
+                series_name=series_name,
+                official_name=official_name,
+                sid=sid,
+            )
+            if ep is not None:
+                episodes.append(ep)
 
         # sort: normal episodes first by episode number, then specials
         episodes.sort(
@@ -231,6 +178,78 @@ class AniDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
             )
         )
         return episodes
+
+    def _episode_from_node(
+        self,
+        node,  # xml element
+        *,
+        lang: str,
+        order: str,
+        series_name: str | None,
+        official_name: str | None,
+        sid: int,
+    ) -> Episode | None:
+        """Create an Episode object from an AniDB episode XML node.
+
+        Returns None if the node is not a normal/special episode.
+        """
+        epno = node.find("epno")
+        if epno is None or epno.text is None:
+            return None
+        number = int(re.sub(r"\D", "", epno.text))
+        type_attr = epno.get("type")
+        try:
+            ep_type = int(type_attr) if type_attr is not None else 0
+        except ValueError:
+            ep_type = 0
+        if ep_type not in (1, 2):  # normal or special
+            return None
+
+        try:
+            eid = int(node.get("id")) if node.get("id") else None
+        except ValueError:
+            eid = None
+
+        airdate = self._select_text(node, "airdate") or None
+        title = self._select_text(node, f".//title[@lang='{lang}']") or ""
+        if not title:
+            title = self._select_text(node, ".//title[@lang='en']") or ""
+
+        series_display = official_name or series_name or ""
+
+        if ep_type == 1:  # normal episode
+            abs_num = number
+            if (
+                order == "AbsoluteAirdate"
+                and airdate
+                and re.match(r"\d{4}-\d{2}-\d{2}", airdate)
+            ):
+                y, m, d = airdate.split("-")
+                abs_num = int(y) * 10000 + int(m) * 100 + int(d)
+            return Episode(
+                series_name=series_display,
+                season=None,
+                episode=number,
+                title=title or None,
+                absolute=abs_num,
+                special_number=None,
+                airdate=airdate,
+                id=eid,
+                series_info=SeriesInfo(id=sid, name=series_display),
+            )
+
+        # special
+        return Episode(
+            series_name=series_display,
+            season=None,
+            episode=None,
+            title=title or None,
+            absolute=None,
+            special_number=number,
+            airdate=airdate,
+            id=eid,
+            series_info=SeriesInfo(id=sid, name=series_display),
+        )
 
     def get_series_info(self, series: SearchResult | int, locale: str) -> SeriesInfo:
         """Fetch basic series info using the anime XML data.

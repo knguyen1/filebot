@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import threading
 import time
+import unicodedata
 from collections import deque
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -177,3 +178,81 @@ def compute_opensubtitles_hash(file_path: str) -> tuple[str, int]:
     h = (head_sum + tail_sum + (size & 0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF
     hash_hex = f"{h:016x}"
     return hash_hex, size
+
+
+def normalize_string_for_match(value: str, _locale: str | None = None) -> str:
+    """Return a lenient-normalized string for name matching.
+
+    Parameters
+    ----------
+    value:
+        Input string to normalize.
+    _locale:
+        Reserved for future locale-aware normalization rules (unused).
+
+    Returns
+    -------
+    str
+        Normalized string with accents removed, lowercased, punctuation
+        replaced by spaces, and collapsed whitespace.
+
+    Notes
+    -----
+    Normalization strategy:
+    - Unicode NFKD + strip diacritics
+    - Lowercase
+    - Replace non-alphanumeric with single spaces
+    - Collapse whitespace
+    """
+    if not value:
+        return ""
+    # Decompose accents and remove combining marks
+    decomposed = unicodedata.normalize("NFKD", value)
+    without_accents = "".join(c for c in decomposed if not unicodedata.combining(c))
+    lowered = without_accents.lower()
+    # Replace non-alphanumeric with spaces
+    cleaned_chars = [ch if ch.isalnum() else " " for ch in lowered]
+    cleaned = "".join(cleaned_chars)
+    # Collapse whitespace
+    tokens = cleaned.split()
+    return " ".join(tokens)
+
+
+def lenient_names_set(names: list[str], _locale: str | None = None) -> set[str]:
+    """Return set of lenient-normalized names.
+
+    Parameters
+    ----------
+    names:
+        List of candidate names.
+    _locale:
+        Reserved for future locale-aware normalization rules (unused).
+
+    Returns
+    -------
+    set[str]
+        Normalized, deduplicated names.
+    """
+    return {normalize_string_for_match(n) for n in names if n}
+
+
+def lenient_name_equals(
+    a: str | None, b: str | None, _locale: str | None = None
+) -> bool:
+    """Compare two names leniently after normalization.
+
+    Parameters
+    ----------
+    a:
+        First name (may be None).
+    b:
+        Second name (may be None).
+    _locale:
+        Reserved for future locale-aware normalization rules (unused).
+
+    Returns
+    -------
+    bool
+        True if normalized names are equal, False otherwise.
+    """
+    return normalize_string_for_match(a or "") == normalize_string_for_match(b or "")

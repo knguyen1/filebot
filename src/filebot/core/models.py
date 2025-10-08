@@ -156,6 +156,23 @@ class Episode:
     series_info: SeriesInfo | None = None
 
 
+@dataclass(slots=True)
+class MultiEpisode:
+    """Represents a logical multi-episode grouping.
+
+    Parameters
+    ----------
+    episodes:
+        Ordered list of `Episode` objects belonging to the same series.
+    """
+
+    episodes: list[Episode]
+
+    def get_episodes(self) -> list[Episode]:
+        """Return the underlying episodes in order."""
+        return list(self.episodes)
+
+
 # Constants used across providers
 MOVIE_DB_IDENTIFIER: Final[str] = "TheMovieDB"
 TV_DB_IDENTIFIER: Final[str] = "TheTVDB"

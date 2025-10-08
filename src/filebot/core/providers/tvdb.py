@@ -36,7 +36,11 @@ from filebot.core.providers.base import (
     EpisodeListProvider,
     RestClientMixin,
 )
-from filebot.core.providers.utils import RateLimiter, is_https
+from filebot.core.providers.utils import (
+    RateLimiter,
+    is_https,
+    lenient_name_equals,
+)
 
 
 @dataclass(slots=True)
@@ -93,7 +97,16 @@ class TheTVDBClient(BaseDatasource, RestClientMixin, EpisodeListProvider):
                 sid = int(it["id"])  # KeyError/ValueError handled below
                 name = it.get("seriesName") or ""
                 aliases = list(it.get("aliases") or [])
-                out.append(SearchResult(id=sid, name=name, alias_names=aliases))
+                # Filter clearly invalid items by lenient name match if possible
+                if query and not lenient_name_equals(query, name, locale):
+                    # allow if any alias matches leniently
+                    if not any(lenient_name_equals(query, a, locale) for a in aliases):
+                        # keep but deprioritize by appending later if desired
+                        out.append(SearchResult(id=sid, name=name, alias_names=aliases))
+                    else:
+                        out.append(SearchResult(id=sid, name=name, alias_names=aliases))
+                else:
+                    out.append(SearchResult(id=sid, name=name, alias_names=aliases))
             except (KeyError, ValueError, TypeError):
                 continue
         return out

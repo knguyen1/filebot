@@ -33,6 +33,11 @@ from filebot.core.providers.base import (
     MusicIdentificationService,
     SubtitleProvider,
 )
+from filebot.core.providers.episode_utils import (
+    create_episode,
+    get_multi_episode_list,
+    match_by_absolute,
+)
 from filebot.core.providers.fanarttv import FanartTVClient
 from filebot.core.providers.omdb import OMDbClient
 from filebot.core.providers.opensubtitles import OpenSubtitlesClient
@@ -58,4 +63,7 @@ __all__ = [
     "TMDbTVClient",
     "TVMazeClient",
     "TheTVDBClient",
+    "create_episode",
+    "get_multi_episode_list",
+    "match_by_absolute",
 ]
