@@ -22,6 +22,7 @@
 
 from __future__ import annotations
 
+from filebot.ui.views.episodes_panel import EpisodesPanel as EpisodesPanel
 from filebot.ui.views.rename_panel import RenamePanel as RenamePanel
 
-__all__ = ["RenamePanel"]
+__all__ = ["EpisodesPanel", "RenamePanel"]

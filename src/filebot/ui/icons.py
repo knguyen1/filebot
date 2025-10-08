@@ -54,6 +54,8 @@ _ICON_MAP: Final[dict[str, tuple[str, ...]]] = {
     "fetch": ("fa5s.download", "fa5s.cloud-download-alt"),
     "copy": ("fa5s.copy",),
     "tools": ("fa5s.tools", "fa5s.wrench"),
+    # Search specific
+    "find": ("fa5s.binoculars", "fa5s.search"),
 }
 
 # Default colors for icons to avoid grayscale look.
@@ -75,6 +77,8 @@ _ICON_COLOR_MAP: Final[dict[str, str]] = {
     "fetch": "#007bff",  # primary blue
     "copy": "#95a5a6",  # muted gray
     "tools": "#7f8c8d",  # dark gray
+    # Search specific
+    "find": "#2c3e50",  # dark blue-gray
 }
 
 

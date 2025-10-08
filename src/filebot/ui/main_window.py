@@ -23,9 +23,16 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QHBoxLayout, QMainWindow, QWidget
+from PyQt6.QtWidgets import (
+    QHBoxLayout,
+    QMainWindow,
+    QStackedLayout,
+    QToolButton,
+    QWidget,
+)
 
 from filebot.ui.components.sidebar import Sidebar
+from filebot.ui.views.episodes_panel import EpisodesPanel
 from filebot.ui.views.rename_panel import RenamePanel
 
 
@@ -45,10 +52,44 @@ class MainWindow(QMainWindow):
         layout.setSpacing(0)
 
         self._sidebar = Sidebar(parent=central)
-        self._rename_panel = RenamePanel(parent=central)
+
+        # Stacked content area for switching between views via sidebar
+        content_container = QWidget(central)
+        self._content_stack = QStackedLayout()
+        self._rename_panel = RenamePanel(parent=content_container)
+        self._episodes_panel = EpisodesPanel(parent=content_container)
+        self._content_stack.addWidget(self._rename_panel)
+        self._content_stack.addWidget(self._episodes_panel)
+        content_container.setLayout(self._content_stack)
 
         layout.addWidget(self._sidebar, 0, alignment=Qt.AlignmentFlag.AlignTop)
-        layout.addWidget(self._rename_panel, 1)
+        layout.addWidget(content_container, 1)
 
         central.setLayout(layout)
         self.setCentralWidget(central)
+
+        # Wire sidebar navigation after widgets exist
+        self._wire_sidebar_navigation()
+
+    def _wire_sidebar_navigation(self) -> None:
+        """Connect sidebar buttons to stacked view navigation.
+
+        Notes
+        -----
+        Uses object names exposed by `Sidebar` to avoid tight coupling.
+        """
+        mapping: dict[str, QWidget] = {
+            "sidebarButton_rename": self._rename_panel,
+            "sidebarButton_episodes": self._episodes_panel,
+        }
+
+        for object_name, widget in mapping.items():
+            button = self._sidebar.findChild(QToolButton, object_name)
+            if button is not None:
+                # Use a lambda capturing the widget to set current view
+                button.clicked.connect(
+                    lambda _=False, w=widget: self._content_stack.setCurrentWidget(w)
+                )
+
+        # Default to Rename view at startup
+        self._content_stack.setCurrentWidget(self._rename_panel)
